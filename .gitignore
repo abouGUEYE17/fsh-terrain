@@ -1,8 +1,8 @@
 .DS_Store
 Thumbs.db
 node_modules/
-android/
-dist-desktop/
-dist/
+/android/
+/dist-desktop/
+/dist/
 *.jks
 *.keystore
