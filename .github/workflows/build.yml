@@ -1,0 +1,121 @@
+name: Applications Android et Windows
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VERSION: 1.0.${{ github.run_number }}
+
+jobs:
+  android:
+    name: APK Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Installer Capacitor
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Générer le projet Android
+        run: |
+          npx cap add android
+          bash scripts/prepare-android.sh ${{ github.run_number }}
+          npx cap sync android
+
+      - name: Compiler l'APK
+        working-directory: android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          mkdir -p ../dist
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/fsh-terrain.jks"
+            ./gradlew assembleRelease --no-daemon \
+              -Pandroid.injected.signing.store.file="$RUNNER_TEMP/fsh-terrain.jks" \
+              -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+              -Pandroid.injected.signing.key.alias=fsh-terrain \
+              -Pandroid.injected.signing.key.password="$KEYSTORE_PASSWORD"
+            rm -f "$RUNNER_TEMP/fsh-terrain.jks"
+            cp app/build/outputs/apk/release/app-release.apk "../dist/FSH-Terrain-$VERSION.apk"
+          else
+            echo "::warning::Secrets ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD absents : APK de test (signature temporaire)."
+            ./gradlew assembleDebug --no-daemon
+            cp app/build/outputs/apk/debug/app-debug.apk "../dist/FSH-Terrain-$VERSION-test.apk"
+          fi
+          ls -la ../dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist/*.apk
+
+  windows:
+    name: Application Windows (.exe)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer Electron
+        run: npm ci --no-audit --no-fund
+
+      - name: Compiler l'installateur et la version portable
+        shell: bash
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npm version "$VERSION" --no-git-tag-version
+          npx electron-builder --win --publish never
+          ls -la dist-desktop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist-desktop/*.exe
+
+  release:
+    name: Publier la version
+    needs: [android, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: FSH Terrain ${{ env.VERSION }}
+          make_latest: true
+          files: dist/*
+          body: |
+            **Android** : `FSH-Terrain-${{ env.VERSION }}.apk` – à installer sur les téléphones (autoriser les « sources inconnues »).
+            **Windows** : `FSH-Terrain-Installation-${{ env.VERSION }}.exe` (installe l'application et crée un raccourci) ou `FSH-Terrain-Portable-${{ env.VERSION }}.exe` (se lance sans installation).
+
+            Après installation, ouvrir **Paramètres** et saisir l'adresse du service Google et le code d'accès.

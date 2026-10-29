@@ -1,0 +1,8 @@
+{
+  "appId": "sn.fsh.terrain",
+  "appName": "FSH Terrain",
+  "webDir": "web",
+  "android": {
+    "allowMixedContent": false
+  }
+}

@@ -24,8 +24,12 @@ Le **Tableau de bord** affiche le nombre de collectes, de séances, de participa
 
 | Dossier | Contenu |
 | --- | --- |
-| `web/` | L'application (à héberger). Aucune dépendance, aucune compilation. |
+| `web/` | L'application elle-même (HTML, CSS, JavaScript, sans compilation). |
 | `apps-script/` | Le service qui écrit dans le Drive (à copier dans Google Apps Script). **Ne pas publier ce dossier** : il contient le code d'accès. |
+| `desktop/` | Lanceur de la version Windows (Electron). |
+| `native/android/` | Icônes et écran de démarrage de l'APK. |
+| `scripts/` | Préparation du projet Android (permissions GPS et appareil photo, version, icônes). |
+| `.github/workflows/build.yml` | Compilation automatique de l'APK et du .exe sur GitHub. |
 
 ## Installation (une seule fois, environ 15 minutes)
 
@@ -56,6 +60,9 @@ GitHub Pages, Vercel ou tout autre hébergement statique en HTTPS fonctionne aus
 
 ### 3. Installer l'application sur les téléphones Android
 
+Le plus simple est d'installer l'**APK** (voir plus bas). Sinon, depuis la version web :
+
+
 1. Ouvrir l'adresse de l'application dans **Chrome**.
 2. Ouvrir le menu ⋮ puis choisir **Installer l'application** (ou **Ajouter à l'écran d'accueil**).
 3. Au premier lancement, ouvrir **Paramètres** :
@@ -64,7 +71,35 @@ GitHub Pages, Vercel ou tout autre hébergement statique en HTTPS fonctionne aus
    - **code d'accès** : le `CODE_ACCES` choisi ;
    - cliquer sur **Tester la connexion**, puis sur **Enregistrer**.
 
-L'application peut ensuite s'ouvrir et servir sans réseau. Pour obtenir un vrai fichier APK, on peut passer l'adresse de l'application dans <https://www.pwabuilder.com> (option « Android »).
+L'application peut ensuite s'ouvrir et servir sans réseau. Les mêmes réglages de **Paramètres** s'appliquent à l'APK et au .exe.
+
+## Télécharger l'APK Android et le .exe Windows
+
+À chaque modification envoyée sur la branche `main`, GitHub compile automatiquement :
+
+| Fichier | Pour qui | Installation |
+| --- | --- | --- |
+| `FSH-Terrain-1.0.N.apk` | Téléphones et tablettes Android (Android 6 ou plus récent) | Ouvrir le fichier sur le téléphone et autoriser « Installer des applis inconnues » |
+| `FSH-Terrain-Installation-1.0.N.exe` | Ordinateurs Windows 10/11 | Double-cliquer ; un raccourci « FSH Terrain » est créé sur le bureau |
+| `FSH-Terrain-Portable-1.0.N.exe` | Ordinateurs Windows, sans droits d'installation | Double-cliquer ; l'application se lance directement |
+
+Les fichiers se trouvent dans l'onglet **Releases** du dépôt GitHub (dernière version en haut). Si la compilation échoue, le détail est dans l'onglet **Actions**.
+
+À savoir :
+
+- L'APK et le .exe contiennent toute l'application : ils fonctionnent sans connexion dès l'installation, sans hébergement.
+- Windows peut afficher « Windows a protégé votre ordinateur », car le .exe n'est pas signé par un certificat payant. Cliquer sur **Informations complémentaires**, puis sur **Exécuter quand même**.
+- **Signature de l'APK** : pour que chaque mise à jour s'installe par-dessus l'ancienne version et conserve les fiches non envoyées, toutes les versions doivent être signées avec la même clé. Cette clé n'est pas dans le dépôt. Elle est lue dans deux secrets GitHub, à créer une fois dans **Settings → Secrets and variables → Actions → New repository secret** :
+  - `ANDROID_KEYSTORE_BASE64` : le contenu du fichier `ANDROID_KEYSTORE_BASE64.txt` ;
+  - `ANDROID_KEYSTORE_PASSWORD` : le contenu du fichier `ANDROID_KEYSTORE_PASSWORD.txt`.
+
+  Sans ces secrets, GitHub produit un `FSH-Terrain-1.0.N-test.apk`, signé avec une clé temporaire qui change à chaque compilation. Il convient pour essayer l'application, mais pas pour les relais : chaque mise à jour obligerait à désinstaller l'application, et les fiches non envoyées seraient perdues. **Conserver la clé `fsh-terrain.jks` et son mot de passe en lieu sûr** : sans elle, aucune mise à jour de l'APK ne sera possible.
+- Sur Windows, la localisation GPS n'est généralement pas disponible : ce champ est facultatif.
+
+### Compiler soi-même (facultatif)
+
+- **Android** (avec Android Studio et le SDK installés) : `npm install`, puis `npm run android:add` et `npx cap open android`.
+- **Windows** : `npm install`, puis `npm run build:windows`. Les fichiers sont créés dans `dist-desktop/`.
 
 ## Utilisation
 

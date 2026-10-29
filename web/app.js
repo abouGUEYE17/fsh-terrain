@@ -649,7 +649,10 @@ window.addEventListener('online', () => { majEtat(); lancerSync(); });
 window.addEventListener('offline', majEtat);
 setInterval(() => { if (navigator.onLine) lancerSync(); }, 2 * 60 * 1000);
 
-if ('serviceWorker' in navigator) {
+// Dans l'APK (Capacitor) et l'application Windows, les fichiers sont déjà sur l'appareil :
+// le cache hors ligne n'est utile que pour la version web.
+const versionWeb = location.protocol.startsWith('http') && !window.Capacitor;
+if (versionWeb && 'serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 if (navigator.storage && navigator.storage.persist) {
