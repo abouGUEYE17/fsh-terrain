@@ -98,9 +98,36 @@ jobs:
           name: windows
           path: dist-desktop/*.exe
 
+  mac:
+    name: Application Mac (.dmg)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer Electron
+        run: npm ci --no-audit --no-fund
+
+      - name: Compiler le .dmg (Intel et Apple Silicon)
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npm version "$VERSION" --no-git-tag-version
+          npx electron-builder --mac --publish never
+          ls -la dist-desktop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: dist-desktop/*.dmg
+
   release:
     name: Publier la version
-    needs: [android, windows]
+    needs: [android, windows, mac]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -115,7 +142,8 @@ jobs:
           make_latest: true
           files: dist/*
           body: |
-            **Android** : `FSH-Terrain-${{ env.VERSION }}.apk` – à installer sur les téléphones (autoriser les « sources inconnues »).
+            **Android** : le fichier `.apk` – à installer sur les téléphones (autoriser les « sources inconnues »). Un nom se terminant par `-test` signale un APK de test.
             **Windows** : `FSH-Terrain-Installation-${{ env.VERSION }}.exe` (installe l'application et crée un raccourci) ou `FSH-Terrain-Portable-${{ env.VERSION }}.exe` (se lance sans installation).
+            **Mac** : `FSH-Terrain-${{ env.VERSION }}-Mac.dmg` – ouvrir le fichier et glisser FSH Terrain dans Applications (Mac Intel et Apple Silicon).
 
             Après installation, ouvrir **Paramètres** et saisir l'adresse du service Google et le code d'accès.
